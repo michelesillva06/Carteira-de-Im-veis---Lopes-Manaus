@@ -261,11 +261,43 @@ export async function generateAndDownloadPDF(
 
       const imgData = canvas.toDataURL("image/jpeg", 0.9);
 
+      // Extract links from clone to embed real clickable PDF link annotations
+      const pdfLinks: { href: string; x: number; y: number; w: number; h: number }[] = [];
+      const cloneRect = clone.getBoundingClientRect();
+      if (cloneRect.width > 0 && cloneRect.height > 0) {
+        const aNodes = Array.from(clone.querySelectorAll<HTMLAnchorElement>("a[href]"));
+        for (const aNode of aNodes) {
+          const href = aNode.getAttribute("href") || aNode.href;
+          if (!href || href === "#") continue;
+          const rect = aNode.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            const relX = rect.left - cloneRect.left;
+            const relY = rect.top - cloneRect.top;
+            pdfLinks.push({
+              href,
+              x: (relX / cloneRect.width) * pdfWidth,
+              y: (relY / cloneRect.height) * pdfHeight,
+              w: (rect.width / cloneRect.width) * pdfWidth,
+              h: (rect.height / cloneRect.height) * pdfHeight,
+            });
+          }
+        }
+      }
+
       if (i > 0) {
         pdf.addPage("a4", "portrait");
       }
 
       pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, pdfHeight, undefined, "FAST");
+
+      // Add clickable PDF link annotations over the rendered page
+      for (const link of pdfLinks) {
+        try {
+          pdf.link(link.x, link.y, link.w, link.h, { url: link.href });
+        } catch (e) {
+          console.warn("Failed to add PDF link annotation:", e);
+        }
+      }
     } finally {
       cleanup();
     }

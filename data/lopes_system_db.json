@@ -1,0 +1,68 @@
+{
+  "users": [
+    {
+      "id": "usr_admin",
+      "name": "Administrador Geral",
+      "email": "admin@lopesmanaus.com.br",
+      "passwordHash": "02f22947d878065e762cafd969aea34ba7c3b47a203da5c860af2f2d201a8fd0",
+      "role": "admin",
+      "creci": "687-J",
+      "phone": "(92) 99304-2722",
+      "active": true,
+      "createdAt": "2026-09-13T13:47:46.963Z",
+      "lastLoginAt": "2026-09-13T15:02:37.013Z"
+    },
+    {
+      "id": "usr_michele",
+      "name": "Michele Silva",
+      "email": "michele.sillva06@gmail.com",
+      "passwordHash": "02f22947d878065e762cafd969aea34ba7c3b47a203da5c860af2f2d201a8fd0",
+      "role": "corretor",
+      "creci": "5421-AM",
+      "phone": "(92) 99304-2722",
+      "active": true,
+      "createdAt": "2026-09-13T13:47:46.963Z",
+      "lastLoginAt": "2026-09-13T15:10:44.455Z"
+    }
+  ],
+  "auditLogs": [
+    {
+      "id": "log_1789312244456_0nmh",
+      "timestamp": "2026-09-13T15:10:44.456Z",
+      "userId": "usr_michele",
+      "userName": "Michele Silva",
+      "userRole": "corretor",
+      "action": "LOGIN_EFETUADO",
+      "details": "Usuário Michele Silva acessou o sistema com sucesso.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log_1789311757013_tt9n",
+      "timestamp": "2026-09-13T15:02:37.013Z",
+      "userId": "usr_admin",
+      "userName": "Administrador Geral",
+      "userRole": "admin",
+      "action": "LOGIN_EFETUADO",
+      "details": "Usuário Administrador Geral acessou o sistema com sucesso.",
+      "ip": "127.0.0.1"
+    },
+    {
+      "id": "log_init",
+      "timestamp": "2026-09-13T13:47:46.963Z",
+      "userId": "usr_system",
+      "userName": "Sistema Lopes",
+      "userRole": "admin",
+      "action": "SISTEMA_INICIALIZADO",
+      "details": "Base de dados persistente real inicializada com sucesso para a Lopes Manaus.",
+      "ip": "127.0.0.1"
+    }
+  ],
+  "settings": {
+    "agencyName": "Lopes Manaus Imóveis",
+    "creciPJ": "687-J",
+    "officialPhone": "92993042722",
+    "officialEmail": "contato@lopesmanaus.com.br",
+    "feedUrl": "https://multimidia.lopes.com.br/portais/zap-lopesmanaus-v2.xml",
+    "updatedAt": "2026-09-13T13:47:46.963Z"
+  }
+}

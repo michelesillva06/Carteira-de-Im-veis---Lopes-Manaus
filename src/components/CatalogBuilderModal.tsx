@@ -921,10 +921,11 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                                 href={`https://manaus.lopes.com.br/imovel/${property.id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] group"
+                                className="w-full py-3 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg group"
+                                style={{ backgroundColor: "#e11d48", color: "#ffffff", display: "flex", textDecoration: "none", alignItems: "center", justifyContent: "center" }}
                               >
-                                <ExternalLink className="w-4 h-4 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                                <span>👉 Clique Aqui para Ver Mais Fotos e Ficha no Site ↗</span>
+                                <ExternalLink className="w-4 h-4 text-white shrink-0" />
+                                <span style={{ color: "#ffffff", fontWeight: 800 }}>👉 Clique Aqui para Ver Mais Fotos e Ficha no Site ↗</span>
                               </a>
                             </div>
                           </div>
