@@ -1,0 +1,6 @@
+{
+  "name": "Gerador de Catálogos Imobiliários Lopes Manaus",
+  "description": "Sistema parceiro para imobiliárias e corretores com integração dinâmica do feed XML Lopesnet, busca avançada por bairro, zona e faixa de preço, e gerador de catálogos digitais com fotos e descrições.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

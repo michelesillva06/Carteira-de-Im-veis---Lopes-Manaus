@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  
+  <g transform="translate(24, 24) scale(0.90625)">
+    <!-- Solid Red Circle -->
+    <circle cx="372" cy="180" r="106" fill="#E5093A" />
+    
+    <!-- Heart Body Cradling Circle -->
+    <path d="
+      M 246 460
+      C 195 440, 105 350, 48 280
+      C 12 232, 10 178, 38 128
+      C 72 68, 150 62, 206 102
+      C 224 114, 236 128, 246 146
+      A 134 134 0 0 0 424 332
+      C 426 332, 420 338, 412 344
+      C 365 385, 305 432, 246 460
+      Z
+    " fill="#E5093A" />
+  </g>
+</svg>
