@@ -24,8 +24,13 @@ function getZipArchiveInstance(options: any = { zlib: { level: 6 } }) {
   throw new Error("Módulo ZIP não disponível");
 }
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const currentFilename = typeof __filename !== "undefined" 
+  ? __filename 
+  : (typeof import.meta !== "undefined" && import.meta.url ? fileURLToPath(import.meta.url) : process.cwd());
+
+const currentDirname = typeof __dirname !== "undefined"
+  ? __dirname
+  : path.dirname(currentFilename);
 
 const app = express();
 const PORT = 3000;

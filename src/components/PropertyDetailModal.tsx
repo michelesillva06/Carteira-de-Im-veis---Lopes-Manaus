@@ -309,11 +309,11 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     href={`https://manaus.lopes.com.br/imovel/${property.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1.5 border border-rose-200/80 shadow-2xs"
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white text-xs font-extrabold transition-all flex items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
                     title="Abrir página oficial do imóvel no portal da Lopes"
                   >
-                    <ExternalLink className="w-4 h-4" />
-                    <span>Ver no Portal Lopes</span>
+                    <ExternalLink className="w-4 h-4 text-white" />
+                    <span>👉 Clique para Ver Fotos no Site ↗</span>
                   </a>
                 </div>
               </div>

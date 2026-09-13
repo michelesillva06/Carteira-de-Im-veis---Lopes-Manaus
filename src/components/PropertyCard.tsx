@@ -259,10 +259,11 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
             href={`https://manaus.lopes.com.br/imovel/${property.id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs transition flex items-center justify-center border border-rose-200/70"
-            title="Ver no site da Lopes (manaus.lopes.com.br)"
+            className="py-2 px-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition flex items-center justify-center gap-1 border border-rose-200/80"
+            title="Clique para ver fotos e detalhes no site da Lopes"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3.5 h-3.5 text-rose-600" />
+            <span>👉 Site ↗</span>
           </a>
 
           <button

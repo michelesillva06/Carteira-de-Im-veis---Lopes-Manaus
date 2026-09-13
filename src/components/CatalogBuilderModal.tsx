@@ -916,20 +916,15 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                             </div>
 
                             {/* Botão de Ver Mais Detalhes no Site */}
-                            <div className="pt-1">
+                            <div className="pt-2">
                               <a
                                 href={`https://manaus.lopes.com.br/imovel/${property.id}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center justify-between shadow-xs"
+                                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-extrabold text-xs sm:text-sm transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] group"
                               >
-                                <div className="flex items-center gap-2">
-                                  <ExternalLink className="w-3.5 h-3.5 text-rose-500" />
-                                  <span>Ver Mais Detalhes no Portal Lopes</span>
-                                </div>
-                                <span className="text-[10px] text-slate-300 font-mono">
-                                  lopes.com.br/imovel/{property.id} ↗
-                                </span>
+                                <ExternalLink className="w-4 h-4 text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                <span>👉 Clique Aqui para Ver Mais Fotos e Ficha no Site ↗</span>
                               </a>
                             </div>
                           </div>
