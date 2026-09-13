@@ -166,6 +166,11 @@ async function prepareElementForCapture(element: HTMLElement): Promise<{ clone: 
       if (currentSrc) {
         const base64Src = await toDataURL(currentSrc);
         img.src = base64Src;
+        try {
+          if ("decode" in img) {
+            await img.decode().catch(() => {});
+          }
+        } catch {}
       }
     })
   );
@@ -235,11 +240,11 @@ export async function generateAndDownloadPDF(
       // Fast capture with html2canvas (scale 1.5 delivers sharp A4 prints without heavy memory lag)
       const canvas = await html2canvas(clone, {
         scale: 1.5,
-        useCORS: false,
-        allowTaint: true,
+        useCORS: true,
+        allowTaint: false,
         logging: false,
         backgroundColor: "#ffffff",
-        imageTimeout: 1500,
+        imageTimeout: 3000,
         onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
           // 1. Sanitize all <style> tags in cloned document <head> and <body>
           const styleElements = Array.from(clonedDoc.querySelectorAll("style"));

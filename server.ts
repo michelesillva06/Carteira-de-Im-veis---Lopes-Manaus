@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { XMLParser } from "fast-xml-parser";
 import { GoogleGenAI } from "@google/genai";
@@ -525,18 +526,61 @@ function parseModalidade(transactionType: string): "Venda" | "Locação" | "Vend
   return "Venda";
 }
 
+const DATA_DIR = path.join(process.cwd(), "data");
+const LISTINGS_CACHE_FILE = path.join(DATA_DIR, "lopes_listings_cache.json");
+
+function saveListingsToDisk(cacheData: CacheState) {
+  try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
+    fs.writeFileSync(LISTINGS_CACHE_FILE, JSON.stringify(cacheData, null, 2), "utf-8");
+  } catch (err: any) {
+    console.warn("[FeedSync] Failed to save listings cache to disk:", err.message);
+  }
+}
+
+function loadListingsFromDisk(): boolean {
+  try {
+    if (fs.existsSync(LISTINGS_CACHE_FILE)) {
+      const raw = fs.readFileSync(LISTINGS_CACHE_FILE, "utf-8");
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.listings) && parsed.listings.length > 0) {
+        cache = {
+          ...parsed,
+          status: "success",
+          errorMsg: null,
+        };
+        console.log(`[FeedSync] Loaded ${cache.listings.length} properties from disk cache.`);
+        return true;
+      }
+    }
+  } catch (err: any) {
+    console.warn("[FeedSync] Failed to read listings cache from disk:", err.message);
+  }
+  return false;
+}
+
 async function fetchAndParseFeed(feedUrl: string = DEFAULT_FEED_URL) {
   cache.status = "syncing";
   cache.feedUrl = feedUrl;
   console.log(`[FeedSync] Ingressing XML from: ${feedUrl}`);
 
   try {
-    const response = await fetch(feedUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; LopesCatalogSync/1.0)",
-        Accept: "application/xml, text/xml, */*",
-      },
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    let response: Response;
+    try {
+      response = await fetch(feedUrl, {
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (compatible; LopesCatalogSync/2.0)",
+          Accept: "application/xml, text/xml, */*",
+        },
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       throw new Error(`Falha HTTP ${response.status}: ${response.statusText}`);
@@ -768,19 +812,28 @@ async function fetchAndParseFeed(feedUrl: string = DEFAULT_FEED_URL) {
       },
     };
 
+    saveListingsToDisk(cache);
     console.log(`[FeedSync] Synced successfully: ${total} properties parsed from ${feedUrl}`);
     return cache;
   } catch (err: any) {
-    console.error("[FeedSync] Error syncing XML:", err);
-    cache.status = "error";
-    cache.errorMsg = err.message || "Erro ao baixar ou processar o arquivo XML da Lopes";
-    throw err;
+    console.error("[FeedSync] Error syncing XML:", err.message);
+    if (cache.listings.length > 0) {
+      cache.status = "success";
+      cache.errorMsg = `Aviso: Sincronização em tempo real indisponível (${err.message}). Exibindo ${cache.listings.length} imóveis salvos.`;
+      console.log(`[FeedSync] Retaining ${cache.listings.length} cached properties.`);
+      return cache;
+    } else {
+      cache.status = "error";
+      cache.errorMsg = err.message || "Erro ao baixar ou processar o arquivo XML da Lopes";
+      throw err;
+    }
   }
 }
 
-// Initial sync on boot
+// Initial sync on boot: load disk cache immediately then sync XML in background
+loadListingsFromDisk();
 fetchAndParseFeed(DEFAULT_FEED_URL).catch((err) => {
-  console.warn("[FeedSync] Initial sync warning:", err.message);
+  console.warn("[FeedSync] Initial background sync warning:", err.message);
 });
 
 // ==================== API ROUTES ====================

@@ -2,7 +2,6 @@ import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   X,
   BookOpen,
-  Printer,
   Share2,
   Trash2,
   Eye,
@@ -15,6 +14,7 @@ import {
   Check,
   Loader2,
   FileDown,
+  FileText,
   ChevronRight,
   ExternalLink,
 } from "lucide-react";
@@ -268,7 +268,7 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                     : "text-slate-300 hover:text-white"
                 }`}
               >
-                <Printer className="w-3.5 h-3.5" />
+                <FileDown className="w-3.5 h-3.5" />
                 <span>Lâmina PDF ({displayedProperties.length})</span>
               </button>
 
@@ -596,8 +596,8 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                       onClick={() => setViewMode("preview_pdf")}
                       className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-2 shadow-xs"
                     >
-                      <Printer className="w-4 h-4 text-rose-400" />
-                      <span>Gerar Lâmina PDF</span>
+                      <FileDown className="w-4 h-4 text-rose-400" />
+                      <span>Visualizar e Baixar PDF</span>
                     </button>
                   </div>
                 </div>
@@ -648,7 +648,7 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                     )}
                   </div>
                   <p className="text-xs text-slate-500">
-                    Exibindo {displayedProperties.length} lâminas formatadas para PDF (A4) ou impressão.
+                    Exibindo {displayedProperties.length} lâminas formatadas em alta resolução para download em PDF (A4).
                   </p>
                 </div>
 
@@ -661,18 +661,9 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                   </button>
 
                   <button
-                    onClick={handlePrint}
-                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-800 bg-white border border-slate-300 hover:bg-slate-50 transition flex items-center gap-1.5 shadow-2xs"
-                    title="Imprimir ou Salvar em PDF imediatamente"
-                  >
-                    <Printer className="w-4 h-4 text-slate-700" />
-                    <span>Imprimir / Salvar PDF</span>
-                  </button>
-
-                  <button
                     onClick={handleDownloadDirectPDF}
                     disabled={pdfGenerating}
-                    className="px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 transition flex items-center gap-2 shadow-md shadow-rose-600/20"
+                    className="px-4 sm:px-6 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold text-white bg-rose-600 hover:bg-rose-700 disabled:bg-rose-400 transition flex items-center gap-2 shadow-md shadow-rose-600/20 active:scale-[0.99] cursor-pointer"
                     title="Baixar arquivo .pdf pronto"
                   >
                     {pdfGenerating ? (
@@ -680,7 +671,7 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                     ) : (
                       <FileDown className="w-4 h-4" />
                     )}
-                    <span>{pdfGenerating ? "Gerando..." : "Baixar PDF (.pdf)"}</span>
+                    <span>{pdfGenerating ? "Gerando PDF..." : "Baixar Catálogo PDF (.pdf)"}</span>
                   </button>
 
                   <button

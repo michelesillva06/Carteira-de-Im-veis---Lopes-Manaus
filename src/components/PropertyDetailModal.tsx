@@ -8,7 +8,7 @@ import {
   Bath,
   Check,
   Plus,
-  Printer,
+  FileDown,
   Share2,
   Copy,
   Sparkles,
@@ -299,10 +299,10 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                   <button
                     onClick={() => onPrintFlyer(property)}
                     className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-2xs"
-                    title="Gerar e salvar lâmina em PDF"
+                    title="Baixar Ficha PDF deste Imóvel"
                   >
-                    <Printer className="w-4 h-4" />
-                    <span>Gerar Lâmina PDF</span>
+                    <FileDown className="w-4 h-4 text-rose-400" />
+                    <span>Baixar Ficha PDF</span>
                   </button>
 
                   <a
