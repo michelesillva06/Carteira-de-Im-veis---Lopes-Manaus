@@ -35,6 +35,7 @@ import { UserManagementModal } from "./components/UserManagementModal";
 import { PWAInstallButton } from "./components/PWAInstallButton";
 import { OfflineIndicator } from "./components/OfflineIndicator";
 import { formatCurrency, createWhatsAppLink } from "./data/manaustowns";
+import { fetchJson } from "./utils/apiClient";
 
 const DEFAULT_BROKER: BrokerProfile = {
   name: "Michele Silva",
@@ -110,26 +111,25 @@ export default function App() {
           } catch {}
         }
 
-        const res = await fetch(`/api/auth/me${queryParam}`);
-        const contentType = res.headers.get("content-type");
-        if (res.ok && contentType && contentType.includes("application/json")) {
-          const data = await res.json();
-          if (data.success && data.user) {
-            const u: UserAccount = data.user;
-            setCurrentUser(u);
-            localStorage.setItem("lopes_current_user", JSON.stringify(u));
-            setBrokerProfile((prev) => ({
-              ...prev,
-              name: u.name || prev.name,
-              creci: u.creci || prev.creci,
-              phone: u.phone || prev.phone,
-              email: u.email || prev.email,
-            }));
-          } else if (data.success && data.user === null && queryParam) {
-            // User was deleted or deactivated
-            setCurrentUser(null);
-            localStorage.removeItem("lopes_current_user");
-          }
+        const data = await fetchJson<{ success: boolean; user: UserAccount | null }>(
+          `/api/auth/me${queryParam}`
+        );
+
+        if (data.success && data.user) {
+          const u: UserAccount = data.user;
+          setCurrentUser(u);
+          localStorage.setItem("lopes_current_user", JSON.stringify(u));
+          setBrokerProfile((prev) => ({
+            ...prev,
+            name: u.name || prev.name,
+            creci: u.creci || prev.creci,
+            phone: u.phone || prev.phone,
+            email: u.email || prev.email,
+          }));
+        } else if (data.success && data.user === null && queryParam) {
+          // User was deleted or deactivated
+          setCurrentUser(null);
+          localStorage.removeItem("lopes_current_user");
         }
       } catch (e) {
         console.warn("Auth check warning:", e);
@@ -163,7 +163,7 @@ export default function App() {
 
   const handleLogout = async () => {
     try {
-      await fetch("/api/auth/logout", {
+      await fetchJson("/api/auth/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: currentUser?.id, userName: currentUser?.name }),
@@ -204,9 +204,16 @@ export default function App() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/properties");
-      if (!res.ok) throw new Error("Falha ao carregar imóveis do servidor.");
-      const data = await res.json();
+      const data = await fetchJson<{
+        success: boolean;
+        properties: PropertyListing[];
+        metadata?: FeedMetadata;
+        lastSyncTime?: string;
+        feedUrl?: string;
+        syncStatus?: "idle" | "syncing" | "success" | "error";
+        error?: string;
+      }>("/api/properties");
+
       if (data.success) {
         setAllProperties(data.properties || []);
         setMetadata(data.metadata || null);
@@ -214,11 +221,11 @@ export default function App() {
         setFeedUrl(data.feedUrl || feedUrl);
         setSyncStatus(data.syncStatus || "success");
       } else {
-        throw new Error(data.error || "Erro desconhecido.");
+        throw new Error(data.error || "Erro ao carregar lista de imóveis.");
       }
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Erro de conexão.");
+      setError(err.message || "Erro de conexão ao obter imóveis.");
       setSyncStatus("error");
     } finally {
       setLoading(false);
@@ -233,14 +240,13 @@ export default function App() {
   const handleTriggerSync = async (newUrl?: string) => {
     setSyncStatus("syncing");
     try {
-      const res = await fetch("/api/sync", {
+      const data = await fetchJson<{ success: boolean; error?: string }>("/api/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: newUrl }),
       });
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Erro ao sincronizar feed.");
+      if (!data.success) {
+        throw new Error(data.error || "Erro ao sincronizar feed de imóveis.");
       }
       await loadProperties();
     } catch (err: any) {
@@ -647,9 +653,10 @@ export default function App() {
 
       {/* User Login & Authentication Modal */}
       <LoginModal
-        isOpen={isLoginModalOpen}
+        isOpen={!currentUser || isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         onLoginSuccess={handleLoginSuccess}
+        isMandatory={!currentUser}
       />
 
       {/* User Accounts & System Audit Management Modal */}

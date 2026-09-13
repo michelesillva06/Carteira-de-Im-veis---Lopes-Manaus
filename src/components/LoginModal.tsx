@@ -1,17 +1,20 @@
 import React, { useState } from "react";
 import { X, Lock, Mail, UserCheck, Shield, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
 import { UserAccount } from "../types";
+import { fetchJson } from "../utils/apiClient";
 
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onLoginSuccess: (user: UserAccount) => void;
+  isMandatory?: boolean;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({
   isOpen,
   onClose,
   onLoginSuccess,
+  isMandatory = false,
 }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,21 +41,23 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setError(null);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      const data = await fetchJson<{ success: boolean; user: UserAccount; message?: string }>(
+        "/api/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim(), password }),
+        }
+      );
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
+      if (!data.success || !data.user) {
         throw new Error(data.message || "E-mail ou senha incorretos.");
       }
 
       onLoginSuccess(data.user);
       onClose();
     } catch (err: any) {
-      setError(err.message || "Falha na autenticação.");
+      setError(err.message || "Falha na autenticação. Verifique os dados inseridos.");
     } finally {
       setLoading(false);
     }
@@ -69,12 +74,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       <div className="relative bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in duration-200">
         {/* Header background with Lopes branding */}
         <div className="bg-gradient-to-br from-rose-700 via-rose-600 to-rose-800 p-6 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-rose-100 hover:text-white hover:bg-white/10 rounded-full transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!isMandatory && (
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-2 text-rose-100 hover:text-white hover:bg-white/10 rounded-full transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
 
           <div className="flex items-center gap-3 mb-2">
             <img

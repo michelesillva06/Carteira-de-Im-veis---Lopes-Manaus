@@ -304,6 +304,17 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     <Printer className="w-4 h-4" />
                     <span>Gerar Lâmina PDF</span>
                   </button>
+
+                  <a
+                    href={`https://manaus.lopes.com.br/imovel/${property.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition flex items-center gap-1.5 border border-rose-200/80 shadow-2xs"
+                    title="Abrir página oficial do imóvel no portal da Lopes"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Ver no Portal Lopes</span>
+                  </a>
                 </div>
               </div>
             </div>

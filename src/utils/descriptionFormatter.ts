@@ -194,6 +194,8 @@ export function generateWhatsAppPitch(
     pitch += `📞 *WhatsApp:* ${brokerProfile.phone}\n`;
   }
 
+  pitch += `\n🌐 *Ver Mais Detalhes no Site:*\nhttps://manaus.lopes.com.br/imovel/${property.id}\n`;
+
   return pitch.trim();
 }
 
@@ -206,6 +208,7 @@ export function generatePdfSummary(property: PropertyListing): {
   specs: { label: string; value: string; icon: string }[];
   highlights: string[];
   cleanDescription: string;
+  portalUrl: string;
 } {
   const isRent = property.modalidade === "Locação";
   const area = property.livingArea || property.lotArea;
@@ -234,6 +237,7 @@ export function generatePdfSummary(property: PropertyListing): {
     specs,
     highlights: amenities,
     cleanDescription: cleanDesc,
+    portalUrl: `https://manaus.lopes.com.br/imovel/${property.id}`,
   };
 }
 

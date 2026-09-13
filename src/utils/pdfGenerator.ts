@@ -12,6 +12,81 @@ const FALLBACK_IMAGE_DATA_URL =
   "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500'%3E%3Crect width='800' height='500' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%2394a3b8'%3EImóvel Lopes Manaus%3C/text%3E%3C/svg%3E";
 
 /**
+ * Converts any CSS color string (including oklch, oklab, display-p3) to standard RGB/RGBA/Hex
+ * using the browser's 2D canvas context. This completely prevents html2canvas from crashing with:
+ * "Attempting to parse an unsupported color function 'oklch'".
+ */
+let colorCanvasCtx: CanvasRenderingContext2D | null = null;
+
+function convertOklchToRgb(colorStr: string): string {
+  if (!colorStr || typeof colorStr !== "string") return colorStr;
+  if (!colorStr.includes("oklch") && !colorStr.includes("oklab")) {
+    return colorStr;
+  }
+
+  try {
+    if (!colorCanvasCtx && typeof document !== "undefined") {
+      const c = document.createElement("canvas");
+      c.width = 1;
+      c.height = 1;
+      colorCanvasCtx = c.getContext("2d", { willReadFrequently: true });
+    }
+
+    if (colorCanvasCtx) {
+      colorCanvasCtx.fillStyle = "#ffffff";
+      colorCanvasCtx.fillStyle = colorStr;
+      const res = colorCanvasCtx.fillStyle;
+      if (res && !res.includes("oklch") && !res.includes("oklab")) {
+        return res;
+      }
+    }
+  } catch {}
+
+  // Fallback if browser canvas is not available or fails
+  return "rgb(225, 29, 72)";
+}
+
+function sanitizeOklchText(text: string): string {
+  if (!text || (!text.includes("oklch") && !text.includes("oklab"))) {
+    return text;
+  }
+  return text.replace(/oklch\s*\([^)]+\)/gi, (match) => {
+    return convertOklchToRgb(match);
+  });
+}
+
+function sanitizeElementStyles(root: HTMLElement) {
+  if (!root) return;
+  const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
+  for (const el of elements) {
+    const styleAttr = el.getAttribute("style");
+    if (styleAttr && (styleAttr.includes("oklch") || styleAttr.includes("oklab"))) {
+      el.setAttribute("style", sanitizeOklchText(styleAttr));
+    }
+
+    try {
+      const comp = window.getComputedStyle(el);
+      const props = [
+        "color",
+        "backgroundColor",
+        "borderColor",
+        "outlineColor",
+        "boxShadow",
+        "fill",
+        "stroke",
+      ] as const;
+
+      for (const p of props) {
+        const val = comp[p];
+        if (val && typeof val === "string" && (val.includes("oklch") || val.includes("oklab"))) {
+          (el.style as any)[p] = convertOklchToRgb(val);
+        }
+      }
+    } catch {}
+  }
+}
+
+/**
  * Converts an image source to a Base64 data URL with strict timeout.
  * If fetch or conversion fails, returns the fallback SVG placeholder immediately.
  */
@@ -63,6 +138,9 @@ async function prepareElementForCapture(element: HTMLElement): Promise<{ clone: 
   clone.style.backgroundColor = "#ffffff";
   clone.style.boxSizing = "border-box";
   clone.style.margin = "0";
+
+  // Pre-sanitize inline styles
+  sanitizeElementStyles(clone);
 
   // Create clean sandbox container on DOM
   const sandbox = document.createElement("div");
@@ -162,6 +240,23 @@ export async function generateAndDownloadPDF(
         logging: false,
         backgroundColor: "#ffffff",
         imageTimeout: 1500,
+        onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
+          // 1. Sanitize all <style> tags in cloned document <head> and <body>
+          const styleElements = Array.from(clonedDoc.querySelectorAll("style"));
+          for (const styleEl of styleElements) {
+            if (
+              styleEl.textContent &&
+              (styleEl.textContent.includes("oklch") || styleEl.textContent.includes("oklab"))
+            ) {
+              styleEl.textContent = sanitizeOklchText(styleEl.textContent);
+            }
+          }
+
+          // 2. Sanitize element inline & computed styles in cloned element
+          if (clonedElement) {
+            sanitizeElementStyles(clonedElement as HTMLElement);
+          }
+        },
       });
 
       const imgData = canvas.toDataURL("image/jpeg", 0.9);

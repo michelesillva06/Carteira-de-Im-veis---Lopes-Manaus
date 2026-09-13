@@ -16,6 +16,7 @@ import {
   Loader2,
   FileDown,
   ChevronRight,
+  ExternalLink,
 } from "lucide-react";
 import { PropertyListing, BrokerProfile } from "../types";
 import { formatCurrency, createWhatsAppLink } from "../data/manaustowns";
@@ -190,7 +191,8 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
       text += `💰 Valor: *${formatCurrency(p.price)}${isRent ? "/mês" : ""}*\n`;
       text += `📐 Área: ${p.livingArea || p.lotArea}m² | 🛏️ ${p.bedrooms} qts (${p.suites} suítes) | 🚗 ${p.garage} vagas\n`;
       if (p.condoFee > 0) text += `🏢 Condomínio: ${formatCurrency(p.condoFee)}\n`;
-      text += `Código: *${p.id}*\n\n`;
+      text += `Código: *${p.id}*\n`;
+      text += `🔗 *Ver no Site:* https://manaus.lopes.com.br/imovel/${p.id}\n\n`;
     });
 
     text += `Deseja agendar uma visita para conhecer de perto alguma dessas opções?\n\n`;
@@ -911,6 +913,24 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
                                   ))}
                                 </div>
                               )}
+                            </div>
+
+                            {/* Botão de Ver Mais Detalhes no Site */}
+                            <div className="pt-1">
+                              <a
+                                href={`https://manaus.lopes.com.br/imovel/${property.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition flex items-center justify-between shadow-xs"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <ExternalLink className="w-3.5 h-3.5 text-rose-500" />
+                                  <span>Ver Mais Detalhes no Portal Lopes</span>
+                                </div>
+                                <span className="text-[10px] text-slate-300 font-mono">
+                                  lopes.com.br/imovel/{property.id} ↗
+                                </span>
+                              </a>
                             </div>
                           </div>
                         );

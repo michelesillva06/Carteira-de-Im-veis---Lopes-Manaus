@@ -13,6 +13,7 @@ import {
   FileText,
   Key,
   BadgeDollarSign,
+  ExternalLink,
 } from "lucide-react";
 import { PropertyListing } from "../types";
 import { formatCurrency } from "../data/manaustowns";
@@ -245,18 +246,28 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-4 pt-3 flex items-center gap-2">
+        <div className="mt-4 pt-3 flex items-center gap-1.5">
           <button
             onClick={() => onOpenDetails(property)}
-            className="flex-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-800 font-semibold text-xs transition flex items-center justify-center gap-1.5"
+            className="flex-1 py-2 px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-800 font-semibold text-xs transition flex items-center justify-center gap-1.5"
           >
             <FileText className="w-3.5 h-3.5 text-slate-500" />
-            <span>Ver Ficha Completa</span>
+            <span>Ficha Completa</span>
           </button>
+
+          <a
+            href={`https://manaus.lopes.com.br/imovel/${property.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-xs transition flex items-center justify-center border border-rose-200/70"
+            title="Ver no site da Lopes (manaus.lopes.com.br)"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
 
           <button
             onClick={() => onQuickShareWhatsApp(property)}
-            className="py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-emerald-200/60"
+            className="py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-semibold text-xs transition flex items-center justify-center gap-1.5 border border-emerald-200/60"
             title="Gerar texto formatado para WhatsApp"
           >
             <Share2 className="w-3.5 h-3.5" />

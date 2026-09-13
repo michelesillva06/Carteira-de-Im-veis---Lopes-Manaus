@@ -18,6 +18,7 @@ import {
   History,
 } from "lucide-react";
 import { UserAccount, AuditLog } from "../types";
+import { fetchJson } from "../utils/apiClient";
 
 interface UserManagementModalProps {
   isOpen: boolean;
@@ -54,22 +55,15 @@ export const UserManagementModal: React.FC<UserManagementModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const [usersRes, logsRes] = await Promise.all([
-        fetch("/api/users"),
-        fetch("/api/audit-logs"),
+      const [usersData, logsData] = await Promise.all([
+        fetchJson<{ users: UserAccount[] }>("/api/users"),
+        fetchJson<{ logs: AuditLog[] }>("/api/audit-logs"),
       ]);
 
-      if (usersRes.ok) {
-        const usersData = await usersRes.json();
-        setUsers(usersData.users || []);
-      }
-
-      if (logsRes.ok) {
-        const logsData = await logsRes.json();
-        setAuditLogs(logsData.logs || []);
-      }
+      setUsers(usersData.users || []);
+      setAuditLogs(logsData.logs || []);
     } catch (err: any) {
-      setError("Falha ao carregar dados do banco de dados.");
+      setError(err.message || "Falha ao carregar dados do banco de dados.");
     } finally {
       setLoading(false);
     }
