@@ -711,14 +711,19 @@ export async function renderPropertyCanvas(
     (highlightRows > 0 ? 34 + highlightRows * 40 : 0);
 
   // Reserve fixed space at the bottom of the page for the CTA button and
-  // footer, then let the card grow to fill everything above that anchor —
-  // this is what keeps the page looking full regardless of description length.
+  // footer. The card grows to help fill that space, but only up to a
+  // reasonable cap — stretching a short description into a giant, mostly
+  // empty box looks worse than a modestly-sized, well-padded one. When the
+  // card is capped short of that anchor, the CTA/footer simply follow right
+  // after it instead of being force-pinned far below with a gap in between.
   const footerTextY = CANVAS_H - 90;
   const footerLineY = footerTextY - 30;
   const btnH = 88;
   const ctaY = footerLineY - 40 - btnH;
   const cardBottomMax = ctaY - 36;
-  const cardH = Math.max(naturalCardH, cardBottomMax - y);
+  const desiredFillH = cardBottomMax - y;
+  const maxStretchH = naturalCardH + 420;
+  const cardH = Math.max(naturalCardH, Math.min(desiredFillH, maxStretchH));
 
   fillRoundedRect(ctx, cardX, y, cardW, cardH, 22, SLATE_50, SLATE_200, 1.5);
   // Rose accent bar on the left edge, like a pull-quote
@@ -730,7 +735,13 @@ export async function renderPropertyCanvas(
   ctx.fillRect(cardX, y, 10, cardH);
   ctx.restore();
 
-  let ty = y + cardPad + 8;
+  // Vertically center the text block within the card so any extra height
+  // reads as generous, even padding — not a dead zone at the bottom.
+  const contentH = naturalCardH - cardPad * 2;
+  const innerH = cardH - cardPad * 2;
+  const centerOffset = Math.max(0, (innerH - contentH) / 2);
+
+  let ty = y + cardPad + 8 + centerOffset;
   ctx.font = `800 28px ${FONT}`;
   ctx.fillStyle = SLATE_900;
   for (const line of headlineLines) {
@@ -767,10 +778,25 @@ export async function renderPropertyCanvas(
     });
   }
   y += cardH;
-  const cardOverflow = Math.max(0, y + 36 - ctaY);
-  const finalCtaY = ctaY + cardOverflow;
-  const finalFooterLineY = footerLineY + cardOverflow;
-  const finalFooterTextY = footerTextY + cardOverflow;
+
+  // CTA/footer are pinned to the bottom anchor only if the card actually
+  // reached it; otherwise they simply follow the card with a normal gap,
+  // leaving a modest (not jarring) blank margin at the bottom — normal for
+  // a short one-pager, same as a printed brochure.
+  const reachedAnchor = cardH >= desiredFillH - 1;
+  let finalCtaY: number;
+  let finalFooterLineY: number;
+  let finalFooterTextY: number;
+  if (reachedAnchor) {
+    const overflow = Math.max(0, y + 36 - ctaY);
+    finalCtaY = ctaY + overflow;
+    finalFooterLineY = footerLineY + overflow;
+    finalFooterTextY = footerTextY + overflow;
+  } else {
+    finalCtaY = y + 36;
+    finalFooterLineY = finalCtaY + btnH + 40;
+    finalFooterTextY = finalFooterLineY + 30;
+  }
 
   // --- CTA button (pinned near the bottom, with clickable link overlay) ---
   y = finalCtaY;
