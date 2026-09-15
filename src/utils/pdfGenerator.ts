@@ -68,20 +68,123 @@ function sanitizeOklchText(text: string): string {
     return text;
   }
 
-  // 1. Replace oklch(...) and oklab(...) and color(...) functions
-  let sanitized = text.replace(/(?:oklch|oklab|color)\s*\([^)]+\)/gi, (match) => {
+  let result = text;
+
+  // 1. Replace function calls with up to 3 levels of nested parens
+  const colorFuncRegex = /(?:oklch|oklab|color-mix|color)\s*\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi;
+  result = result.replace(colorFuncRegex, (match) => {
     return convertOklchToRgb(match);
   });
 
-  // 2. Replace color-mix(...) functions
-  sanitized = sanitized.replace(/color-mix\s*\((?:[^()]+|\([^()]*\))*\)/gi, "rgb(225, 29, 72)");
+  // 2. Fallback for any single-level or multiline oklab/oklch parens
+  result = result.replace(/(?:oklch|oklab)\s*\([\s\S]*?\)/gi, (match) => {
+    return convertOklchToRgb(match);
+  });
 
-  // 3. Replace isolated tokens
-  sanitized = sanitized
-    .replace(/\boklab\b/gi, "srgb")
-    .replace(/\boklch\b/gi, "srgb");
+  // 3. Replace color-mix functions if any remain
+  result = result.replace(/color-mix\s*\([\s\S]*?\)/gi, "rgb(225, 29, 72)");
 
-  return sanitized;
+  // 4. Replace isolated tokens
+  if (result.includes("oklab") || result.includes("oklch")) {
+    result = result
+      .replace(/\boklab\b/gi, "srgb")
+      .replace(/\boklch\b/gi, "srgb");
+  }
+
+  return result;
+}
+
+/**
+  Safely wraps html2canvas execution by:
+  1. Sanitizing all <style> tags in document.head/body before html2canvas parses document.styleSheets
+  2. Wrapping window.getComputedStyle in a Proxy to convert any computed oklab/oklch colors to RGB
+ */
+async function safeHtml2Canvas(element: HTMLElement, options: any): Promise<HTMLCanvasElement> {
+  // 1. Sanitize main document <style> elements
+  if (typeof document !== "undefined") {
+    const styles = Array.from(document.querySelectorAll("style"));
+    for (const s of styles) {
+      if (
+        s.textContent &&
+        (s.textContent.includes("oklch") ||
+          s.textContent.includes("oklab") ||
+          s.textContent.includes("color-mix") ||
+          s.textContent.includes("color("))
+      ) {
+        s.textContent = sanitizeOklchText(s.textContent);
+      }
+    }
+  }
+
+  // 2. Proxy window.getComputedStyle to intercept html2canvas style queries
+  const originalGetComputedStyle = window.getComputedStyle;
+  const proxyGetComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
+    const style = originalGetComputedStyle.call(window, elt, pseudoElt);
+    return new Proxy(style, {
+      get(target, prop, receiver) {
+        const val = Reflect.get(target, prop, receiver);
+        if (
+          typeof val === "string" &&
+          (val.includes("oklab") ||
+            val.includes("oklch") ||
+            val.includes("color-mix") ||
+            val.includes("color("))
+        ) {
+          return sanitizeOklchText(val);
+        }
+        if (typeof val === "function") {
+          if (prop === "getPropertyValue") {
+            return function (propertyName: string) {
+              const res = target.getPropertyValue(propertyName);
+              if (
+                res &&
+                (res.includes("oklab") ||
+                  res.includes("oklch") ||
+                  res.includes("color-mix") ||
+                  res.includes("color("))
+              ) {
+                return sanitizeOklchText(res);
+              }
+              return res;
+            };
+          }
+          return val.bind(target);
+        }
+        return val;
+      },
+    });
+  };
+
+  (window as any).getComputedStyle = proxyGetComputedStyle;
+
+  try {
+    const originalOnClone = options?.onclone;
+    const patchedOptions = {
+      ...options,
+      onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
+        // Sanitize cloned document styles
+        const clonedStyles = Array.from(clonedDoc.querySelectorAll("style"));
+        for (const s of clonedStyles) {
+          if (
+            s.textContent &&
+            (s.textContent.includes("oklch") ||
+              s.textContent.includes("oklab") ||
+              s.textContent.includes("color-mix") ||
+              s.textContent.includes("color("))
+          ) {
+            s.textContent = sanitizeOklchText(s.textContent);
+          }
+        }
+        if (originalOnClone) {
+          originalOnClone(clonedDoc, clonedElement);
+        }
+      },
+    };
+
+    return await html2canvas(element, patchedOptions);
+  } finally {
+    (window as any).getComputedStyle = originalGetComputedStyle;
+  }
 }
 
 function sanitizeElementStyles(root: HTMLElement) {
@@ -279,8 +382,8 @@ export async function generateAndDownloadPDF(
         });
       }
 
-      // Fast capture with html2canvas (scale 1.5 delivers sharp A4 prints without heavy memory lag)
-      const canvas = await html2canvas(clone, {
+      // Fast capture with safeHtml2Canvas wrapper (scale 1.5 delivers sharp A4 prints without heavy memory lag)
+      const canvas = await safeHtml2Canvas(clone, {
         scale: 1.5,
         useCORS: true,
         allowTaint: false,
