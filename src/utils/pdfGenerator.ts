@@ -37,6 +37,7 @@ function convertOklchToRgb(colorStr: string): string {
         ctx.clearRect(0, 0, 1, 1);
         ctx.fillStyle = "#000000";
         ctx.fillStyle = colorStr;
+
         ctx.fillRect(0, 0, 1, 1);
         const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
         const alpha = a / 255;
@@ -72,12 +73,7 @@ function sanitizeOklchText(text: string): string {
     return convertOklchToRgb(match);
   });
 
-  // 3. Multiline / nested parens fallback for oklch and oklab
-  sanitized = sanitized.replace(/(?:oklch|oklab)\s*\([\s\S]*?\)/gi, (match) => {
-    return convertOklchToRgb(match);
-  });
-
-  // 4. Replace isolated tokens
+  // 3. Replace isolated tokens
   sanitized = sanitized
     .replace(/\boklab\b/gi, "srgb")
     .replace(/\boklch\b/gi, "srgb");
@@ -118,9 +114,7 @@ function sanitizeElementStyles(root: HTMLElement) {
 
       for (const p of singleColorProps) {
         try {
-          const val = comp.getPropertyValue
-            ? comp.getPropertyValue(p.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`))
-            : (comp as any)[p];
+          const val = comp[p];
           if (
             val &&
             typeof val === "string" &&
@@ -137,9 +131,7 @@ function sanitizeElementStyles(root: HTMLElement) {
       const compositeProps = ["boxShadow", "backgroundImage"] as const;
       for (const p of compositeProps) {
         try {
-          const val = comp.getPropertyValue
-            ? comp.getPropertyValue(p.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`))
-            : (comp as any)[p];
+          const val = comp[p];
           if (
             val &&
             typeof val === "string" &&
@@ -157,41 +149,93 @@ function sanitizeElementStyles(root: HTMLElement) {
 }
 
 /**
- * Converts an image source to a Base64 data URL with strict timeout.
- * If fetch or conversion fails, returns the fallback SVG placeholder immediately.
+ * Shared cache so the same photo is only ever downloaded once for the whole PDF.
  */
+const imageDataUrlCache = new Map<string, Promise<string>>();
+
+/**
+ * Converts an image source to a Base64 data URL with strict timeout.
+ * Goes directly through /api/image-proxy to ensure CORS headers and avoid unnecessary roundtrips.
+ */
+async function fetchAndConvert(targetUrl: string, timeoutMs: number): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(targetUrl, { signal: controller.signal });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve((reader.result as string) || "");
+      reader.onerror = () => reject(new Error("FileReader failed"));
+      reader.readAsDataURL(blob);
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function toDataURL(src: string): Promise<string> {
   if (!src) return FALLBACK_IMAGE_DATA_URL;
   if (src.startsWith("data:image/")) return src;
+
+  const cached = imageDataUrlCache.get(src);
+  if (cached) return cached;
 
   const isRelative = src.startsWith("/");
   const targetUrl = isRelative
     ? window.location.origin + src
     : `/api/image-proxy?url=${encodeURIComponent(src)}`;
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-    const res = await fetch(targetUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) return FALLBACK_IMAGE_DATA_URL;
-    const blob = await res.blob();
-
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve((reader.result as string) || FALLBACK_IMAGE_DATA_URL);
-      };
-      reader.onerror = () => {
-        resolve(FALLBACK_IMAGE_DATA_URL);
-      };
-      reader.readAsDataURL(blob);
-    });
-  } catch {
+  const promise = (async () => {
+    try {
+      const viaProxy = await fetchAndConvert(targetUrl, 8000);
+      if (viaProxy) return viaProxy;
+    } catch {
+      // fall through to placeholder
+    }
     return FALLBACK_IMAGE_DATA_URL;
+  })();
+
+  imageDataUrlCache.set(src, promise);
+  return promise;
+}
+
+/**
+ * Runs async tasks with a max concurrency
+ */
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+  let index = 0;
+  async function next(): Promise<void> {
+    const current = index++;
+    if (current >= items.length) return;
+    await worker(items[current]);
+    return next();
   }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => next()));
+}
+
+/**
+ * Preloads every <img> across every page in parallel BEFORE any canvas rendering starts.
+ */
+async function preloadAllImages(
+  pageElements: HTMLElement[],
+  onProgress?: (done: number, total: number) => void
+): Promise<void> {
+  const allSrcs = new Set<string>();
+  for (const el of pageElements) {
+    el.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
+      const s = img.getAttribute("src") || img.src;
+      if (s) allSrcs.add(s);
+    });
+  }
+  const list = Array.from(allSrcs);
+  let done = 0;
+  await runWithConcurrency(list, 8, async (src) => {
+    await toDataURL(src).catch(() => {});
+    done++;
+    onProgress?.(done, list.length);
+  });
 }
 
 /**
@@ -209,7 +253,7 @@ async function prepareElementForCapture(element: HTMLElement): Promise<{ clone: 
   clone.style.boxSizing = "border-box";
   clone.style.margin = "0";
 
-  // Create clean sandbox container on DOM FIRST so elements are in document tree before styling
+  // Create clean sandbox container on DOM FIRST before styling elements
   const sandbox = document.createElement("div");
   sandbox.style.position = "fixed";
   sandbox.style.left = "0";
@@ -268,7 +312,7 @@ export async function generateAndDownloadPDF(
     throw new Error("Nenhuma lâmina para gerar PDF.");
   }
 
-  // Ensure fonts are ready safely
+  // Ensure fonts are ready
   if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
     try {
       await document.fonts.ready;
@@ -276,6 +320,23 @@ export async function generateAndDownloadPDF(
   }
 
   const totalPages = pageElements.length;
+
+  if (onProgress) {
+    onProgress({
+      currentPage: 0,
+      totalPages,
+      status: "Baixando fotos dos imóveis...",
+    });
+  }
+  await preloadAllImages(pageElements, (done, total) => {
+    if (onProgress && total > 0) {
+      onProgress({
+        currentPage: 0,
+        totalPages,
+        status: `Baixando fotos dos imóveis... (${done}/${total})`,
+      });
+    }
+  });
 
   const pdf = new jsPDF({
     orientation: "portrait",
@@ -294,7 +355,7 @@ export async function generateAndDownloadPDF(
       onProgress({
         currentPage: i + 1,
         totalPages,
-        status: `Otimizando imagens da página ${i + 1} de ${totalPages}...`,
+        status: `Preparando lâmina ${i + 1} de ${totalPages}...`,
       });
     }
 
@@ -418,26 +479,28 @@ export async function generateAndDownloadPDF(
 
   const safeFileName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
 
-  // Trigger download via jsPDF save
-  pdf.save(safeFileName);
-
-  // Fallback programmatic Blob download
+  // Trigger download. pdf.save() is attempted first; the blob download only acts as fallback if save() throws.
   try {
-    const blob = pdf.output("blob");
-    const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = safeFileName;
-    document.body.appendChild(link);
-    link.click();
-    setTimeout(() => {
-      if (link.parentNode) {
-        link.parentNode.removeChild(link);
-      }
-      URL.revokeObjectURL(blobUrl);
-    }, 1000);
+    pdf.save(safeFileName);
   } catch (err) {
-    console.warn("[PDFGenerator] Fallback blob download:", err);
+    console.warn("[PDFGenerator] pdf.save() failed, using blob fallback:", err);
+    try {
+      const blob = pdf.output("blob");
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = safeFileName;
+      document.body.appendChild(link);
+      link.click();
+      setTimeout(() => {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
+    } catch (fallbackErr) {
+      console.warn("[PDFGenerator] Fallback blob download also failed:", fallbackErr);
+    }
   }
 }
 
