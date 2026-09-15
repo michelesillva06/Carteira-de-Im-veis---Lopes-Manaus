@@ -16,8 +16,6 @@ const FALLBACK_IMAGE_DATA_URL =
  * using the browser's 2D canvas context. This completely prevents html2canvas from crashing with:
  * "Attempting to parse an unsupported color function 'oklab'".
  */
-let colorCanvasCtx: CanvasRenderingContext2D | null = null;
-
 function convertOklchToRgb(colorStr: string): string {
   if (!colorStr || typeof colorStr !== "string") return colorStr;
   if (
@@ -30,30 +28,26 @@ function convertOklchToRgb(colorStr: string): string {
   }
 
   try {
-    if (!colorCanvasCtx && typeof document !== "undefined") {
+    if (typeof document !== "undefined") {
       const c = document.createElement("canvas");
       c.width = 1;
       c.height = 1;
-      colorCanvasCtx = c.getContext("2d", { willReadFrequently: true });
-    }
-
-    if (colorCanvasCtx) {
-      colorCanvasCtx.fillStyle = "#ffffff";
-      colorCanvasCtx.fillStyle = colorStr;
-      const res = colorCanvasCtx.fillStyle;
-      if (
-        res &&
-        !res.includes("oklch") &&
-        !res.includes("oklab") &&
-        !res.includes("color-mix") &&
-        !res.includes("color(")
-      ) {
-        return res;
+      const ctx = c.getContext("2d", { willReadFrequently: true });
+      if (ctx) {
+        ctx.clearRect(0, 0, 1, 1);
+        ctx.fillStyle = "#000000";
+        ctx.fillStyle = colorStr;
+        ctx.fillRect(0, 0, 1, 1);
+        const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+        const alpha = a / 255;
+        return alpha < 1
+          ? `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(3)})`
+          : `rgb(${r}, ${g}, ${b})`;
       }
     }
   } catch {}
 
-  // Fallback if browser canvas is not available or fails
+  // Fallback ONLY if canvas itself is unavailable/throws
   return "rgb(225, 29, 72)";
 }
 
@@ -68,129 +62,35 @@ function sanitizeOklchText(text: string): string {
     return text;
   }
 
-  let result = text;
-
-  // 1. Replace function calls with up to 3 levels of nested parens
-  const colorFuncRegex = /(?:oklch|oklab|color-mix|color)\s*\((?:[^()]+|\((?:[^()]+|\([^()]*\))*\))*\)/gi;
-  result = result.replace(colorFuncRegex, (match) => {
+  // 1. Replace color-mix(...) functions FIRST (they contain nested parens)
+  let sanitized = text.replace(/color-mix\s*\((?:[^()]+|\([^()]*\))*\)/gi, (match) => {
     return convertOklchToRgb(match);
   });
 
-  // 2. Fallback for any single-level or multiline oklab/oklch parens
-  result = result.replace(/(?:oklch|oklab)\s*\([\s\S]*?\)/gi, (match) => {
+  // 2. Replace remaining oklch(...), oklab(...) and color(...) functions
+  sanitized = sanitized.replace(/(?:oklch|oklab|color)\s*\([^)]+\)/gi, (match) => {
     return convertOklchToRgb(match);
   });
 
-  // 3. Replace color-mix functions if any remain
-  result = result.replace(/color-mix\s*\([\s\S]*?\)/gi, "rgb(225, 29, 72)");
+  // 3. Multiline / nested parens fallback for oklch and oklab
+  sanitized = sanitized.replace(/(?:oklch|oklab)\s*\([\s\S]*?\)/gi, (match) => {
+    return convertOklchToRgb(match);
+  });
 
   // 4. Replace isolated tokens
-  if (result.includes("oklab") || result.includes("oklch")) {
-    result = result
-      .replace(/\boklab\b/gi, "srgb")
-      .replace(/\boklch\b/gi, "srgb");
-  }
+  sanitized = sanitized
+    .replace(/\boklab\b/gi, "srgb")
+    .replace(/\boklch\b/gi, "srgb");
 
-  return result;
-}
-
-/**
-  Safely wraps html2canvas execution by:
-  1. Sanitizing all <style> tags in document.head/body before html2canvas parses document.styleSheets
-  2. Wrapping window.getComputedStyle in a Proxy to convert any computed oklab/oklch colors to RGB
- */
-async function safeHtml2Canvas(element: HTMLElement, options: any): Promise<HTMLCanvasElement> {
-  // 1. Sanitize main document <style> elements
-  if (typeof document !== "undefined") {
-    const styles = Array.from(document.querySelectorAll("style"));
-    for (const s of styles) {
-      if (
-        s.textContent &&
-        (s.textContent.includes("oklch") ||
-          s.textContent.includes("oklab") ||
-          s.textContent.includes("color-mix") ||
-          s.textContent.includes("color("))
-      ) {
-        s.textContent = sanitizeOklchText(s.textContent);
-      }
-    }
-  }
-
-  // 2. Proxy window.getComputedStyle to intercept html2canvas style queries
-  const originalGetComputedStyle = window.getComputedStyle;
-  const proxyGetComputedStyle = function (elt: Element, pseudoElt?: string | null): CSSStyleDeclaration {
-    const style = originalGetComputedStyle.call(window, elt, pseudoElt);
-    return new Proxy(style, {
-      get(target, prop, receiver) {
-        const val = Reflect.get(target, prop, receiver);
-        if (
-          typeof val === "string" &&
-          (val.includes("oklab") ||
-            val.includes("oklch") ||
-            val.includes("color-mix") ||
-            val.includes("color("))
-        ) {
-          return sanitizeOklchText(val);
-        }
-        if (typeof val === "function") {
-          if (prop === "getPropertyValue") {
-            return function (propertyName: string) {
-              const res = target.getPropertyValue(propertyName);
-              if (
-                res &&
-                (res.includes("oklab") ||
-                  res.includes("oklch") ||
-                  res.includes("color-mix") ||
-                  res.includes("color("))
-              ) {
-                return sanitizeOklchText(res);
-              }
-              return res;
-            };
-          }
-          return val.bind(target);
-        }
-        return val;
-      },
-    });
-  };
-
-  (window as any).getComputedStyle = proxyGetComputedStyle;
-
-  try {
-    const originalOnClone = options?.onclone;
-    const patchedOptions = {
-      ...options,
-      onclone: (clonedDoc: Document, clonedElement: HTMLElement) => {
-        // Sanitize cloned document styles
-        const clonedStyles = Array.from(clonedDoc.querySelectorAll("style"));
-        for (const s of clonedStyles) {
-          if (
-            s.textContent &&
-            (s.textContent.includes("oklch") ||
-              s.textContent.includes("oklab") ||
-              s.textContent.includes("color-mix") ||
-              s.textContent.includes("color("))
-          ) {
-            s.textContent = sanitizeOklchText(s.textContent);
-          }
-        }
-        if (originalOnClone) {
-          originalOnClone(clonedDoc, clonedElement);
-        }
-      },
-    };
-
-    return await html2canvas(element, patchedOptions);
-  } finally {
-    (window as any).getComputedStyle = originalGetComputedStyle;
-  }
+  return sanitized;
 }
 
 function sanitizeElementStyles(root: HTMLElement) {
-  if (!root) return;
+  if (!root || root.nodeType !== 1) return;
   const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   for (const el of elements) {
+    if (!el || el.nodeType !== 1) continue;
+
     const styleAttr = el.getAttribute("style");
     if (
       styleAttr &&
@@ -203,29 +103,54 @@ function sanitizeElementStyles(root: HTMLElement) {
     }
 
     try {
+      if (typeof window === "undefined" || !window.getComputedStyle) continue;
       const comp = window.getComputedStyle(el);
-      const props = [
+      if (!comp) continue;
+
+      const singleColorProps = [
         "color",
         "backgroundColor",
         "borderColor",
         "outlineColor",
-        "boxShadow",
         "fill",
         "stroke",
       ] as const;
 
-      for (const p of props) {
-        const val = comp[p];
-        if (
-          val &&
-          typeof val === "string" &&
-          (val.includes("oklch") ||
-            val.includes("oklab") ||
-            val.includes("color-mix") ||
-            val.includes("color("))
-        ) {
-          (el.style as any)[p] = convertOklchToRgb(val);
-        }
+      for (const p of singleColorProps) {
+        try {
+          const val = comp.getPropertyValue
+            ? comp.getPropertyValue(p.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`))
+            : (comp as any)[p];
+          if (
+            val &&
+            typeof val === "string" &&
+            (val.includes("oklch") ||
+              val.includes("oklab") ||
+              val.includes("color-mix") ||
+              val.includes("color("))
+          ) {
+            (el.style as any)[p] = convertOklchToRgb(val);
+          }
+        } catch {}
+      }
+
+      const compositeProps = ["boxShadow", "backgroundImage"] as const;
+      for (const p of compositeProps) {
+        try {
+          const val = comp.getPropertyValue
+            ? comp.getPropertyValue(p.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`))
+            : (comp as any)[p];
+          if (
+            val &&
+            typeof val === "string" &&
+            (val.includes("oklch") ||
+              val.includes("oklab") ||
+              val.includes("color-mix") ||
+              val.includes("color("))
+          ) {
+            (el.style as any)[p] = sanitizeOklchText(val);
+          }
+        } catch {}
       }
     } catch {}
   }
@@ -284,10 +209,7 @@ async function prepareElementForCapture(element: HTMLElement): Promise<{ clone: 
   clone.style.boxSizing = "border-box";
   clone.style.margin = "0";
 
-  // Pre-sanitize inline styles
-  sanitizeElementStyles(clone);
-
-  // Create clean sandbox container on DOM
+  // Create clean sandbox container on DOM FIRST so elements are in document tree before styling
   const sandbox = document.createElement("div");
   sandbox.style.position = "fixed";
   sandbox.style.left = "0";
@@ -303,6 +225,9 @@ async function prepareElementForCapture(element: HTMLElement): Promise<{ clone: 
   sandbox.appendChild(clone);
   document.body.appendChild(sandbox);
 
+  // Pre-sanitize inline styles after element is attached to DOM
+  sanitizeElementStyles(clone);
+
   // Convert all images inside the clone to Base64 Data URLs in parallel
   const imgElements = Array.from(clone.querySelectorAll<HTMLImageElement>("img"));
   await Promise.all(
@@ -311,11 +236,13 @@ async function prepareElementForCapture(element: HTMLElement): Promise<{ clone: 
       if (currentSrc) {
         const base64Src = await toDataURL(currentSrc);
         img.src = base64Src;
-        try {
-          if ("decode" in img) {
-            await img.decode().catch(() => {});
-          }
-        } catch {}
+        if (!img.complete || img.naturalWidth === 0) {
+          await new Promise<void>((resolve) => {
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            setTimeout(resolve, 300);
+          });
+        }
       }
     })
   );
@@ -341,8 +268,8 @@ export async function generateAndDownloadPDF(
     throw new Error("Nenhuma lâmina para gerar PDF.");
   }
 
-  // Ensure fonts are ready
-  if (document.fonts) {
+  // Ensure fonts are ready safely
+  if (typeof document !== "undefined" && document.fonts && document.fonts.ready) {
     try {
       await document.fonts.ready;
     } catch {}
@@ -382,8 +309,8 @@ export async function generateAndDownloadPDF(
         });
       }
 
-      // Fast capture with safeHtml2Canvas wrapper (scale 1.5 delivers sharp A4 prints without heavy memory lag)
-      const canvas = await safeHtml2Canvas(clone, {
+      // Fast capture with html2canvas (scale 1.5 delivers sharp A4 prints without heavy memory lag)
+      const canvas = await html2canvas(clone, {
         scale: 1.5,
         useCORS: true,
         allowTaint: false,
@@ -491,7 +418,7 @@ export async function generateAndDownloadPDF(
 
   const safeFileName = fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`;
 
-  // Trigger download
+  // Trigger download via jsPDF save
   pdf.save(safeFileName);
 
   // Fallback programmatic Blob download
@@ -504,7 +431,9 @@ export async function generateAndDownloadPDF(
     document.body.appendChild(link);
     link.click();
     setTimeout(() => {
-      document.body.removeChild(link);
+      if (link.parentNode) {
+        link.parentNode.removeChild(link);
+      }
       URL.revokeObjectURL(blobUrl);
     }, 1000);
   } catch (err) {
@@ -521,10 +450,15 @@ export function printElementInNewWindow(element: HTMLElement, title: string) {
     .map((node) => node.outerHTML)
     .join("\n");
 
-  const printWindow = window.open("", "_blank", "width=1000,height=900");
+  let printWindow: Window | null = null;
+  try {
+    printWindow = window.open("", "_blank", "width=1000,height=900");
+  } catch {}
 
   if (!printWindow) {
-    window.print();
+    try {
+      window.print();
+    } catch {}
     return;
   }
 
