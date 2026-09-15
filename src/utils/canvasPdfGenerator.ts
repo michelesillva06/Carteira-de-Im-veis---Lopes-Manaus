@@ -305,42 +305,42 @@ export async function renderCoverCanvas(
 
   const M = 130; // page margin
 
-  // Background
-  ctx.fillStyle = NAVY_950;
+  // Background — white, minimalist
+  ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
 
   // --- Header ---
-  drawLopesHeart(ctx, M, 95, 60, LOPES_ROSE_500);
+  drawLopesHeart(ctx, M, 95, 60, LOPES_RED);
   ctx.textBaseline = "alphabetic";
   ctx.font = `900 46px ${FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = SLATE_900;
   ctx.fillText("LOPES", M + 78, 130);
   const lopesW = ctx.measureText("LOPES ").width;
-  ctx.fillStyle = LOPES_ROSE_500;
+  ctx.fillStyle = LOPES_RED;
   ctx.fillText("MANAUS", M + 78 + lopesW, 130);
 
   ctx.font = `700 20px ${FONT}`;
-  ctx.fillStyle = SLATE_400;
+  ctx.fillStyle = SLATE_500;
   ctx.fillText("CONSULTORIA IMOBILIÁRIA OFICIAL", M + 78, 158);
 
   ctx.textAlign = "right";
   ctx.font = `800 20px ${FONT}`;
-  ctx.fillStyle = SLATE_400;
+  ctx.fillStyle = SLATE_500;
   ctx.fillText("PORTFÓLIO EXCLUSIVO", CANVAS_W - M, 108);
   ctx.font = `500 18px ${FONT}`;
-  ctx.fillStyle = SLATE_500;
+  ctx.fillStyle = SLATE_400;
   ctx.fillText(new Date().toLocaleDateString("pt-BR"), CANVAS_W - M, 138);
   ctx.textAlign = "left";
 
   // --- Title block ---
   let cursorY = 260;
   ctx.font = `800 24px ${FONT}`;
-  ctx.fillStyle = LOPES_ROSE_500;
+  ctx.fillStyle = LOPES_RED;
   ctx.fillText("APRESENTAÇÃO PERSONALIZADA", M, cursorY);
 
   cursorY += 60;
   ctx.font = `900 74px ${FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = SLATE_900;
   const titleLines = wrapText(ctx, catalogTitle || "Seleção de Imóveis", CANVAS_W - M * 2);
   for (const line of titleLines.slice(0, 2)) {
     cursorY += 70;
@@ -349,17 +349,17 @@ export async function renderCoverCanvas(
 
   cursorY += 55;
   ctx.font = `500 30px ${FONT}`;
-  ctx.fillStyle = SLATE_400;
+  ctx.fillStyle = SLATE_500;
   const countLabel = `${properties.length} ${properties.length === 1 ? "imóvel selecionado" : "imóveis selecionados"} em Manaus/AM`;
   if (clientName) {
     ctx.fillText("Para ", M, cursorY);
     const paraW = ctx.measureText("Para ").width;
     ctx.font = `700 30px ${FONT}`;
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle = SLATE_900;
     ctx.fillText(clientName, M + paraW, cursorY);
     const nameW = ctx.measureText(clientName).width;
     ctx.font = `500 30px ${FONT}`;
-    ctx.fillStyle = SLATE_400;
+    ctx.fillStyle = SLATE_500;
     ctx.fillText(`   •   ${countLabel}`, M + paraW + nameW, cursorY);
   } else {
     ctx.fillText(countLabel, M, cursorY);
@@ -381,12 +381,22 @@ export async function renderCoverCanvas(
     ctx.clip();
     drawRoundedImage(ctx, img, M, heroTop, heroW, heroH, 0);
 
-    // Bottom scrim for caption legibility
+    // Bottom scrim for caption legibility (kept dark regardless of page
+    // background, since it sits on top of the photo itself)
     const grad = ctx.createLinearGradient(0, heroBottom - heroH * 0.45, 0, heroBottom);
     grad.addColorStop(0, "rgba(2, 6, 23, 0)");
-    grad.addColorStop(1, "rgba(2, 6, 23, 0.92)");
+    grad.addColorStop(1, "rgba(2, 6, 23, 0.85)");
     ctx.fillStyle = grad;
     ctx.fillRect(M, heroBottom - heroH * 0.45, heroW, heroH * 0.45);
+    ctx.restore();
+
+    // Thin frame around the photo for definition against the white page
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(M, heroTop, heroW, heroH, 36);
+    ctx.strokeStyle = SLATE_200;
+    ctx.lineWidth = 2;
+    ctx.stroke();
     ctx.restore();
 
     ctx.font = `800 34px ${FONT}`;
@@ -407,7 +417,7 @@ export async function renderCoverCanvas(
 
   // --- Footer (broker contact, plain line, no heavy card) ---
   const footerY = CANVAS_H - footerH;
-  ctx.strokeStyle = "rgba(148, 163, 184, 0.25)";
+  ctx.strokeStyle = SLATE_200;
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(M, footerY);
@@ -440,7 +450,7 @@ export async function renderCoverCanvas(
 
   const textX = M + avatarSize + 32;
   ctx.font = `800 32px ${FONT}`;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = SLATE_900;
   ctx.fillText(brokerProfile.name, textX, avatarY + 38);
   ctx.font = `500 24px ${FONT}`;
   ctx.fillStyle = SLATE_500;
@@ -449,8 +459,9 @@ export async function renderCoverCanvas(
 
   ctx.textAlign = "right";
   ctx.font = `600 26px ${FONT}`;
-  ctx.fillStyle = SLATE_400;
+  ctx.fillStyle = SLATE_700;
   ctx.fillText(brokerProfile.phone || "", CANVAS_W - M, avatarY + 38);
+  ctx.fillStyle = SLATE_500;
   ctx.fillText(brokerProfile.email || "", CANVAS_W - M, avatarY + 74);
   ctx.textAlign = "left";
 
