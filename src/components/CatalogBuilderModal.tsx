@@ -687,6 +687,110 @@ export const CatalogBuilderModal: React.FC<CatalogBuilderModalProps> = ({
 
               {/* Print Document Container */}
               <div ref={pagesContainerRef} className="max-w-4xl mx-auto space-y-10">
+                {/* COVER PAGE (CAPA DA APRESENTAÇÃO) */}
+                <div
+                  className="catalog-a4-page bg-gradient-to-b from-slate-900 via-slate-900 to-rose-950 rounded-2xl sm:p-10 p-6 shadow-xl text-white flex flex-col justify-between avoid-break page-break border border-slate-800"
+                  style={{ minHeight: "950px" }}
+                >
+                  {/* Top Cover Header */}
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-800/80 pb-6 mb-8">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src="/favicon-lopes.png"
+                          alt="Lopes Consultoria de Imóveis"
+                          className="w-12 h-12 object-contain shrink-0 drop-shadow-md"
+                        />
+                        <div>
+                          <h1 className="text-2xl font-black tracking-tight text-white font-heading">
+                            LOPES <span className="text-rose-500">MANAUS</span>
+                          </h1>
+                          <p className="text-xs text-slate-400 font-semibold uppercase tracking-widest">
+                            Consultoria Imobiliária Oficial
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="px-3.5 py-1.5 rounded-full bg-rose-600/20 border border-rose-500/30 text-rose-300 text-xs font-bold uppercase tracking-wider">
+                        Portfólio Exclusivo
+                      </div>
+                    </div>
+
+                    {/* Presentation Titles */}
+                    <div className="space-y-3 my-10">
+                      <span className="text-xs font-bold uppercase tracking-widest text-rose-400 bg-rose-950/60 px-3 py-1 rounded-md border border-rose-800/40 inline-block">
+                        Apresentação Imobiliária Personalizada
+                      </span>
+                      <h2 className="text-3xl sm:text-4xl font-black text-white font-heading leading-tight">
+                        {catalogTitle || "Catálogo de Imóveis Selecionados"}
+                      </h2>
+                      {clientName && (
+                        <p className="text-base text-slate-300 font-medium">
+                          Preparado especialmente para: <strong className="text-white font-extrabold">{clientName}</strong>
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-400 font-mono pt-1">
+                        {displayedProperties.length} {displayedProperties.length === 1 ? "opção selecionada" : "opções selecionadas"} em Manaus/AM
+                      </p>
+                    </div>
+
+                    {/* Image Highlights Grid on Cover */}
+                    {displayedProperties.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 my-6">
+                        {displayedProperties.slice(0, 4).map((p, i) => (
+                          <div key={p.id + "_cover"} className="aspect-4/3 rounded-xl overflow-hidden border border-slate-700/80 bg-slate-800/50 shadow-md relative group">
+                            <img
+                              src={p.primaryImage}
+                              alt={p.title}
+                              className="w-full h-full object-cover"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent p-2 flex items-end">
+                              <span className="text-[10px] font-bold text-white truncate">
+                                {p.propertyCategory} • {p.location.neighborhood}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Broker Contact Card on Cover Footer */}
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-2xl p-6 flex flex-wrap items-center justify-between gap-4 mt-8 backdrop-blur-xs">
+                    <div className="flex items-center gap-4">
+                      {brokerProfile.avatarUrl ? (
+                        <img
+                          src={brokerProfile.avatarUrl}
+                          alt={brokerProfile.name}
+                          className="w-14 h-14 rounded-2xl object-cover border-2 border-rose-500 shadow-md shrink-0"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-2xl bg-rose-600 text-white font-black text-xl flex items-center justify-center shrink-0 shadow-md">
+                          {brokerProfile.name.charAt(0)}
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-rose-400 font-bold uppercase tracking-wider">Seu Consultor Imobiliário</p>
+                        <h4 className="text-lg font-extrabold text-white">{brokerProfile.name}</h4>
+                        <p className="text-xs text-slate-300 font-medium">
+                          {brokerProfile.creci ? `CRECI: ${brokerProfile.creci} | ` : ""}
+                          {brokerProfile.agencyName || "Lopes Manaus"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-right space-y-1 text-xs text-slate-300">
+                      <p className="font-bold text-white flex items-center justify-end gap-1.5">
+                        <span>📞 {brokerProfile.phone}</span>
+                      </p>
+                      <p className="text-slate-400">✉️ {brokerProfile.email}</p>
+                      <p className="text-[10px] text-slate-500 pt-1 font-mono">
+                        Emitido em {new Date().toLocaleDateString("pt-BR")}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
                 {displayedProperties.map((property, idx) => {
                   const isRent = property.modalidade === "Locação";
                   const formattedSections = parsePropertyDescription(property.description || "");

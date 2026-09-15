@@ -12,15 +12,20 @@ const FALLBACK_IMAGE_DATA_URL =
   "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='500' viewBox='0 0 800 500'%3E%3Crect width='800' height='500' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='sans-serif' font-size='24' fill='%2394a3b8'%3EImóvel Lopes Manaus%3C/text%3E%3C/svg%3E";
 
 /**
- * Converts any CSS color string (including oklch, oklab, display-p3) to standard RGB/RGBA/Hex
+ * Converts any CSS color string (including oklch, oklab, display-p3, color-mix) to standard RGB/RGBA/Hex
  * using the browser's 2D canvas context. This completely prevents html2canvas from crashing with:
- * "Attempting to parse an unsupported color function 'oklch'".
+ * "Attempting to parse an unsupported color function 'oklab'".
  */
 let colorCanvasCtx: CanvasRenderingContext2D | null = null;
 
 function convertOklchToRgb(colorStr: string): string {
   if (!colorStr || typeof colorStr !== "string") return colorStr;
-  if (!colorStr.includes("oklch") && !colorStr.includes("oklab")) {
+  if (
+    !colorStr.includes("oklch") &&
+    !colorStr.includes("oklab") &&
+    !colorStr.includes("color-mix") &&
+    !colorStr.includes("color(")
+  ) {
     return colorStr;
   }
 
@@ -36,7 +41,13 @@ function convertOklchToRgb(colorStr: string): string {
       colorCanvasCtx.fillStyle = "#ffffff";
       colorCanvasCtx.fillStyle = colorStr;
       const res = colorCanvasCtx.fillStyle;
-      if (res && !res.includes("oklch") && !res.includes("oklab")) {
+      if (
+        res &&
+        !res.includes("oklch") &&
+        !res.includes("oklab") &&
+        !res.includes("color-mix") &&
+        !res.includes("color(")
+      ) {
         return res;
       }
     }
@@ -47,12 +58,30 @@ function convertOklchToRgb(colorStr: string): string {
 }
 
 function sanitizeOklchText(text: string): string {
-  if (!text || (!text.includes("oklch") && !text.includes("oklab"))) {
+  if (
+    !text ||
+    (!text.includes("oklch") &&
+      !text.includes("oklab") &&
+      !text.includes("color-mix") &&
+      !text.includes("color("))
+  ) {
     return text;
   }
-  return text.replace(/oklch\s*\([^)]+\)/gi, (match) => {
+
+  // 1. Replace oklch(...) and oklab(...) and color(...) functions
+  let sanitized = text.replace(/(?:oklch|oklab|color)\s*\([^)]+\)/gi, (match) => {
     return convertOklchToRgb(match);
   });
+
+  // 2. Replace color-mix(...) functions
+  sanitized = sanitized.replace(/color-mix\s*\((?:[^()]+|\([^()]*\))*\)/gi, "rgb(225, 29, 72)");
+
+  // 3. Replace isolated tokens
+  sanitized = sanitized
+    .replace(/\boklab\b/gi, "srgb")
+    .replace(/\boklch\b/gi, "srgb");
+
+  return sanitized;
 }
 
 function sanitizeElementStyles(root: HTMLElement) {
@@ -60,7 +89,13 @@ function sanitizeElementStyles(root: HTMLElement) {
   const elements = [root, ...Array.from(root.querySelectorAll<HTMLElement>("*"))];
   for (const el of elements) {
     const styleAttr = el.getAttribute("style");
-    if (styleAttr && (styleAttr.includes("oklch") || styleAttr.includes("oklab"))) {
+    if (
+      styleAttr &&
+      (styleAttr.includes("oklch") ||
+        styleAttr.includes("oklab") ||
+        styleAttr.includes("color-mix") ||
+        styleAttr.includes("color("))
+    ) {
       el.setAttribute("style", sanitizeOklchText(styleAttr));
     }
 
@@ -78,7 +113,14 @@ function sanitizeElementStyles(root: HTMLElement) {
 
       for (const p of props) {
         const val = comp[p];
-        if (val && typeof val === "string" && (val.includes("oklch") || val.includes("oklab"))) {
+        if (
+          val &&
+          typeof val === "string" &&
+          (val.includes("oklch") ||
+            val.includes("oklab") ||
+            val.includes("color-mix") ||
+            val.includes("color("))
+        ) {
           (el.style as any)[p] = convertOklchToRgb(val);
         }
       }
@@ -251,13 +293,41 @@ export async function generateAndDownloadPDF(
           for (const styleEl of styleElements) {
             if (
               styleEl.textContent &&
-              (styleEl.textContent.includes("oklch") || styleEl.textContent.includes("oklab"))
+              (styleEl.textContent.includes("oklch") ||
+                styleEl.textContent.includes("oklab") ||
+                styleEl.textContent.includes("color-mix") ||
+                styleEl.textContent.includes("color("))
             ) {
               styleEl.textContent = sanitizeOklchText(styleEl.textContent);
             }
           }
 
-          // 2. Sanitize element inline & computed styles in cloned element
+          // 2. Sanitize <link rel="stylesheet"> elements by embedding sanitized rules
+          const linkElements = Array.from(
+            clonedDoc.querySelectorAll<HTMLLinkElement>("link[rel='stylesheet']")
+          );
+          for (const link of linkElements) {
+            try {
+              if (link.sheet) {
+                const rules = Array.from(link.sheet.cssRules || [])
+                  .map((r) => r.cssText)
+                  .join("\n");
+                if (
+                  rules &&
+                  (rules.includes("oklch") ||
+                    rules.includes("oklab") ||
+                    rules.includes("color-mix") ||
+                    rules.includes("color("))
+                ) {
+                  const styleNode = clonedDoc.createElement("style");
+                  styleNode.textContent = sanitizeOklchText(rules);
+                  link.parentNode?.replaceChild(styleNode, link);
+                }
+              }
+            } catch {}
+          }
+
+          // 3. Sanitize element inline & computed styles in cloned element
           if (clonedElement) {
             sanitizeElementStyles(clonedElement as HTMLElement);
           }
