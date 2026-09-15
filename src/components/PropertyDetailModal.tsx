@@ -286,12 +286,12 @@ export const PropertyDetailModal: React.FC<PropertyDetailModalProps> = ({
                     {isSelectedForCatalog ? (
                       <>
                         <Check className="w-4 h-4" />
-                        <span>No Catálogo</span>
+                        <span>Na Apresentação</span>
                       </>
                     ) : (
                       <>
                         <Plus className="w-4 h-4" />
-                        <span>Adicionar ao Catálogo</span>
+                        <span>Adicionar à Apresentação</span>
                       </>
                     )}
                   </button>

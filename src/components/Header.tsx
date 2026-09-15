@@ -60,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium hidden xs:block">
-                Carteira Imobiliária & Curadoria
+                Carteira Imobiliária
               </p>
             </div>
           </div>
@@ -168,8 +168,8 @@ export const Header: React.FC<HeaderProps> = ({
               }`}
             >
               <BookOpen className="w-4 h-4" />
-              <span className="hidden xs:inline">Gerar Catálogo</span>
-              <span className="xs:hidden">Catálogo</span>
+              <span className="hidden xs:inline">Gerar Apresentação</span>
+              <span className="xs:hidden">Apresentação</span>
               {selectedCount > 0 ? (
                 <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-[11px] font-bold bg-white text-rose-600 rounded-full min-w-[20px]">
                   {selectedCount}

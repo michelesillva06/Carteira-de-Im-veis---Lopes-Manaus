@@ -123,12 +123,12 @@ export const PropertyCard: React.FC<PropertyCardProps> = ({
                 ? "bg-rose-600 text-white ring-2 ring-white"
                 : "bg-white/90 hover:bg-white text-slate-800 backdrop-blur-xs hover:scale-105"
             }`}
-            title={isSelectedForCatalog ? "Remover do catálogo" : "Adicionar ao catálogo"}
+            title={isSelectedForCatalog ? "Remover da apresentação" : "Adicionar à apresentação"}
           >
             {isSelectedForCatalog ? (
               <>
                 <Check className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[11px]">No Catálogo</span>
+                <span className="hidden sm:inline text-[11px]">Na Apresentação</span>
               </>
             ) : (
               <>

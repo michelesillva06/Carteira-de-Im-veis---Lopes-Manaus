@@ -47,7 +47,6 @@ const SLATE_200 = "#e2e8f0";
 const SLATE_100 = "#f1f5f9";
 const SLATE_50 = "#f8fafc";
 const BLUE_600 = "#2563eb";
-const EMERALD_600 = "#059669";
 
 const FONT = "sans-serif";
 
@@ -590,7 +589,7 @@ export async function renderPropertyCanvas(
 
   // --- Photo grid ---
   y += 40;
-  const gridH = 460;
+  const gridH = 500;
   const gap = 20;
   const mainW = (CANVAS_W - M * 2) * (2 / 3) - gap / 2;
   const sideW = (CANVAS_W - M * 2) - mainW - gap;
@@ -683,68 +682,98 @@ export async function renderPropertyCanvas(
     y = ay + 20;
   }
 
-  // --- Description card ---
+  // --- Description card (redesigned: bigger, clearer, and stretches to fill
+  // the remaining space down to a fixed bottom anchor, so short descriptions
+  // no longer leave the page looking squished with empty space below) ---
   const summary = generatePdfSummary(property);
   y += 40;
-  ctx.font = `800 19px ${FONT}`;
+  ctx.font = `800 20px ${FONT}`;
   ctx.fillStyle = SLATE_800;
   ctx.fillText("📋 APRESENTAÇÃO DO IMÓVEL", M, y);
-  y += 24;
+  y += 26;
 
   const cardX = M;
   const cardW = CANVAS_W - M * 2;
-  const cardPad = 34;
-  ctx.font = `700 24px ${FONT}`;
-  const headlineLines = wrapText(ctx, `✨ ${summary.headline}`, cardW - cardPad * 2);
-  ctx.font = `500 22px ${FONT}`;
-  const descLines = wrapText(ctx, summary.cleanDescription, cardW - cardPad * 2);
-  const highlightRows = Math.ceil(summary.highlights.length / 2);
-  const cardH =
-    cardPad * 2 + headlineLines.length * 34 + 10 + descLines.length * 32 + (highlightRows > 0 ? 16 + highlightRows * 34 : 0);
+  const cardPad = 40;
+  const textW = cardW - cardPad * 2 - 14; // minus left accent bar
 
-  fillRoundedRect(ctx, cardX, y, cardW, cardH, 20, SLATE_50, SLATE_200, 1.5);
-  let ty = y + cardPad + 24;
-  ctx.font = `700 24px ${FONT}`;
+  ctx.font = `800 28px ${FONT}`;
+  const headlineLines = wrapText(ctx, summary.headline, textW);
+  ctx.font = `500 24px ${FONT}`;
+  const descLines = wrapText(ctx, summary.cleanDescription, textW);
+  const highlightRows = Math.ceil(summary.highlights.length / 2);
+
+  const naturalCardH =
+    cardPad * 2 +
+    headlineLines.length * 38 +
+    18 +
+    descLines.length * 36 +
+    (highlightRows > 0 ? 34 + highlightRows * 40 : 0);
+
+  // Reserve fixed space at the bottom of the page for the CTA button and
+  // footer, then let the card grow to fill everything above that anchor —
+  // this is what keeps the page looking full regardless of description length.
+  const footerTextY = CANVAS_H - 90;
+  const footerLineY = footerTextY - 30;
+  const btnH = 88;
+  const ctaY = footerLineY - 40 - btnH;
+  const cardBottomMax = ctaY - 36;
+  const cardH = Math.max(naturalCardH, cardBottomMax - y);
+
+  fillRoundedRect(ctx, cardX, y, cardW, cardH, 22, SLATE_50, SLATE_200, 1.5);
+  // Rose accent bar on the left edge, like a pull-quote
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(cardX, y, cardW, cardH, 22);
+  ctx.clip();
+  ctx.fillStyle = LOPES_RED;
+  ctx.fillRect(cardX, y, 10, cardH);
+  ctx.restore();
+
+  let ty = y + cardPad + 8;
+  ctx.font = `800 28px ${FONT}`;
   ctx.fillStyle = SLATE_900;
   for (const line of headlineLines) {
-    ctx.fillText(line, cardX + cardPad, ty);
-    ty += 34;
+    ty += 38;
+    ctx.fillText(line, cardX + cardPad + 14, ty);
   }
-  ty += 8;
-  ctx.font = `500 22px ${FONT}`;
+  ty += 18;
+  ctx.font = `500 24px ${FONT}`;
   ctx.fillStyle = SLATE_700;
   for (const line of descLines) {
-    ctx.fillText(line, cardX + cardPad, ty);
-    ty += 32;
+    ty += 36;
+    ctx.fillText(line, cardX + cardPad + 14, ty);
   }
   if (highlightRows > 0) {
-    ty += 12;
+    ty += 30;
     ctx.strokeStyle = SLATE_200;
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(cardX + cardPad, ty - 8);
-    ctx.lineTo(cardX + cardW - cardPad, ty - 8);
+    ctx.moveTo(cardX + cardPad + 14, ty - 16);
+    ctx.lineTo(cardX + cardW - cardPad, ty - 16);
     ctx.stroke();
-    ty += 20;
-    const colW = (cardW - cardPad * 2) / 2;
+    const colW = (cardW - cardPad * 2 - 14) / 2;
     summary.highlights.forEach((h, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
-      const hx = cardX + cardPad + col * colW;
-      const hy = ty + row * 34;
-      ctx.font = `800 20px ${FONT}`;
-      ctx.fillStyle = EMERALD_600;
+      const hx = cardX + cardPad + 14 + col * colW;
+      const hy = ty + row * 40;
+      ctx.font = `900 22px ${FONT}`;
+      ctx.fillStyle = LOPES_RED;
       ctx.fillText("✓", hx, hy);
-      ctx.font = `600 20px ${FONT}`;
+      ctx.font = `600 22px ${FONT}`;
       ctx.fillStyle = SLATE_800;
-      ctx.fillText(h, hx + 26, hy);
+      ctx.fillText(h, hx + 30, hy);
     });
   }
   y += cardH;
+  const cardOverflow = Math.max(0, y + 36 - ctaY);
+  const finalCtaY = ctaY + cardOverflow;
+  const finalFooterLineY = footerLineY + cardOverflow;
+  const finalFooterTextY = footerTextY + cardOverflow;
 
-  // --- CTA button (with clickable link overlay) ---
-  y += 34;
-  const btnH = 86;
+  // --- CTA button (pinned near the bottom, with clickable link overlay) ---
+  y = finalCtaY;
   fillRoundedRect(ctx, M, y, CANVAS_W - M * 2, btnH, 18, LOPES_RED);
   ctx.font = `800 26px ${FONT}`;
   ctx.fillStyle = "#ffffff";
@@ -758,23 +787,21 @@ export async function renderPropertyCanvas(
     w: CANVAS_W - M * 2,
     h: btnH,
   });
-  y += btnH;
 
-  // --- Footer ---
-  y += 46;
+  // --- Footer (pinned near the bottom) ---
   ctx.strokeStyle = SLATE_200;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(M, y - 20);
-  ctx.lineTo(CANVAS_W - M, y - 20);
+  ctx.moveTo(M, finalFooterLineY);
+  ctx.lineTo(CANVAS_W - M, finalFooterLineY);
   ctx.stroke();
   ctx.font = `500 20px ${FONT}`;
   ctx.fillStyle = SLATE_500;
-  ctx.fillText(`Atendimento Lopes Manaus • ${brokerProfile.name} • ${brokerProfile.phone}`, M, y);
+  ctx.fillText(`Atendimento Lopes Manaus • ${brokerProfile.name} • ${brokerProfile.phone}`, M, finalFooterTextY);
   ctx.textAlign = "right";
   ctx.font = `800 20px ${FONT}`;
   ctx.fillStyle = LOPES_RED;
-  ctx.fillText(`Ref: ${property.id}`, CANVAS_W - M, y);
+  ctx.fillText(`Ref: ${property.id}`, CANVAS_W - M, finalFooterTextY);
   ctx.textAlign = "left";
 
   return { dataUrl: canvas.toDataURL("image/jpeg", 0.92), links };

@@ -435,10 +435,10 @@ export default function App() {
             <button
               onClick={() => setIsCatalogModalOpen(true)}
               className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition flex items-center gap-2 shadow-xs"
-              title="Abrir gerador de catálogo"
+              title="Abrir gerador de apresentação"
             >
               <BookOpen className="w-4 h-4 text-rose-400" />
-              <span>Catálogo ({selectedPropertyIds.length})</span>
+              <span>Apresentação ({selectedPropertyIds.length})</span>
             </button>
           </div>
         </div>
@@ -545,7 +545,7 @@ export default function App() {
               </div>
               <div>
                 <p className="text-xs sm:text-sm font-bold">
-                  {selectedPropertyIds.length} {selectedPropertyIds.length === 1 ? "imóvel selecionado" : "imóveis selecionados"} para o catálogo
+                  {selectedPropertyIds.length} {selectedPropertyIds.length === 1 ? "imóvel selecionado" : "imóveis selecionados"} para a apresentação
                 </p>
                 <p className="text-[11px] text-slate-400 hidden xs:block">
                   Pronto para gerar lâmina PDF, envio no WhatsApp ou lookbook digital
@@ -565,7 +565,7 @@ export default function App() {
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs sm:text-sm font-bold transition flex items-center gap-1.5 shadow-md shadow-rose-600/30"
               >
                 <BookOpen className="w-4 h-4" />
-                <span>Gerar Catálogo</span>
+                <span>Gerar Apresentação</span>
               </button>
             </div>
           </div>
